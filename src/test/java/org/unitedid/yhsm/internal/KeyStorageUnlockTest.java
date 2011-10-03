@@ -52,4 +52,30 @@ public class KeyStorageUnlockTest extends SetupCommon {
     public void unlockHsm() throws Exception {
         assertTrue(hsm.keyStorageUnlock("2f6af1e667456bb94528e7987344515b"));
     }
+
+    @Test
+    public void otpUnlockHsm() throws Exception {
+        if (new Integer(hsm.info().get("major")) > 0) {
+            /* Incorrect public id */
+            thrown.expect(YubiHSMCommandFailedException.class);
+            thrown.expectMessage("Command YSM_HSM_UNLOCK failed: YSM_INVALID_PARAMETER");
+            assertFalse(hsm.unlockOtp("010000000000", "ffaaffaaffaaffaaffaaffaaffaaffaa"));
+            thrown = ExpectedException.none();
+
+            /* Right public id, wrong OTP */
+            assertFalse(hsm.unlockOtp("4d4d4d000001", "ffaaffaaffaaffaaffaaffaaffaaffaa"));
+
+            /* Right public id, right OTP (for counter values 1/0) */
+            assertTrue(hsm.unlockOtp("4d4d4d000001", "caa821a197c50a29e9fd5bcc35fc4f6d"));
+
+            /* Replay, will lock the HSM again */
+            thrown.expect(YubiHSMCommandFailedException.class);
+            thrown.expectMessage("Command YSM_HSM_UNLOCK failed: YSM_OTP_REPLAY");
+            assertFalse(hsm.unlockOtp("4d4d4d000001", "caa821a197c50a29e9fd5bcc35fc4f6d"));
+            thrown = ExpectedException.none();
+
+            /* Right public id, new OTP */
+            assertTrue(hsm.unlockOtp("4d4d4d000001", "f8df012a2072e6a4d337a6c8c802a75c"));
+        }
+    }
 }

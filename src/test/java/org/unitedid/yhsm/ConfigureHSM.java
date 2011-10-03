@@ -38,16 +38,36 @@ public class ConfigureHSM extends SetupCommon {
 
     @Test
     public void testConfigureHSM() throws Exception {
+        int major_version = new Integer(hsm.info().get("major"));
+
+        System.out.println("Exiting HSM monitor mode (requires YubiHSM in 'debug' mode)");
         hsm.exitMonitorDebugMode();
-        System.out.println(runCommand("hsm ffffffff\r\r2f6af1e667456bb94528e7987344515b\ryes", true));
+        System.out.println("Configuring YubiHSM for test suite (" + hsm.infoToString() + ")");
+        hsm.drainData();
+        System.out.println(runCommand("sysinfo", true));
+        if (major_version == 0) {
+            System.out.println(runCommand("hsm ffffffff\r\r2f6af1e667456bb94528e7987344515b\ryes", true));
+        } else {
+            char esc = 0x1b;
+            System.out.println(runCommand("hsm ffffffff\r\rftftftcccccb\r\r2f6af1e667456bb94528e7987344515b\ryes", true));
+            System.out.println(runCommand("dbload\r00001,ftftftcccccb,010203040506,0102030405060708090a0b0c0d0e0f\r\r" + esc, false));
+        }
         System.out.println(runCommand("sysinfo", true));
         hsm.drainData();
         addKeys();
         System.out.println(runCommand("keylist", true));
+        System.out.println(runCommand("keycommit", true));
+        System.out.println(runCommand("dblist", true));
         deviceHandler.write("exit\r".getBytes());
         Thread.sleep(50);
         hsm.drainData();
         CommandHandler.reset(deviceHandler);
+
+        if (major_version > 0) {
+            /* Make sure we leave the HSM operational for the other tests */
+            hsm.keyStorageUnlock("2f6af1e667456bb94528e7987344515b");
+            hsm.unlockOtp("4d4d4d000001", "caa821a197c50a29e9fd5bcc35fc4f6d");
+        }
     }
 
     private void addKeys() throws Exception {

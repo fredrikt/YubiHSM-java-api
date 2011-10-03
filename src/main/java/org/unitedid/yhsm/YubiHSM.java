@@ -377,7 +377,7 @@ public class YubiHSM  {
     }
 
     /**
-     * Unlock the YubiHSM key storage using the HSM password.
+     * Unlock the YubiHSM key storage using the HSM password/Master key.
      *
      * @param password the password in hex format (see output of automatic password generation during HSM configuration)
      * @return true if unlock was successful, otherwise an YubiHSMCommandFailedException is thrown
@@ -386,7 +386,26 @@ public class YubiHSM  {
      * @throws YubiHSMInputException argument exception
      */
     public boolean keyStorageUnlock(String password) throws YubiHSMCommandFailedException, YubiHSMErrorException, YubiHSMInputException {
-        return KeyStorageUnlockCmd.execute(deviceHandler, password);
+        if ((new Integer(info.get("major"))) < 1) {
+            return KeyStorageUnlockCmd.execute(deviceHandler, password);
+        } else {
+            return UnlockCmd.decrypt(deviceHandler, password);
+        }
+    }
+
+    /**
+     * Have the YubiHSM unlock the HSM operations (those involving the keystore) with a YubiKey OTP.
+     *
+     * @param device the YubiHSM device
+     * @param publicId the YubiKey public id
+     * @param otp the YubiKey OTP (in hex)
+     * @return true if unlock was successful
+     * @throws YubiHSMErrorException error exceptions
+     * @throws YubiHSMInputException argument exceptions
+     * @throws YubiHSMCommandFailedException command failed exception
+     */
+    public boolean unlockOtp(String publicId, String otp) throws YubiHSMCommandFailedException, YubiHSMErrorException, YubiHSMInputException {
+        return UnlockCmd.unlockOtp(deviceHandler, publicId, otp);
     }
 
     /**
